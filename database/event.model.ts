@@ -11,7 +11,7 @@ export interface IEvent extends Document {
   location: string;
   date: string;
   time: string;
-  mode: string;
+  mode: "online" | "offline" | "hybrid";
   audience: string;
   agenda: string[];
   organizer: string;
@@ -109,8 +109,8 @@ const EventSchema = new Schema<IEvent>(
   },
 );
 
-// Pre-save hook for slug generation and data normalization
-EventSchema.pre("save", function (next) {
+// Async pre-save hook (no next() needed)
+EventSchema.pre("save", async function () {
   const event = this as IEvent;
 
   // Generate slug only if title changed or document is new
@@ -118,7 +118,7 @@ EventSchema.pre("save", function (next) {
     event.slug = generateSlug(event.title);
   }
 
-  // Normalize date to ISO format if it's not already
+  // Normalize date to ISO format
   if (event.isModified("date")) {
     event.date = normalizeDate(event.date);
   }
@@ -127,46 +127,38 @@ EventSchema.pre("save", function (next) {
   if (event.isModified("time")) {
     event.time = normalizeTime(event.time);
   }
-
-  next();
 });
 
-// Helper function to generate URL-friendly slug
+// Helper: generate URL-friendly slug
 function generateSlug(title: string): string {
   return title
     .toLowerCase()
     .trim()
-    .replace(/[^a-z0-9\s-]/g, "") // Remove special characters
-    .replace(/\s+/g, "-") // Replace spaces with hyphens
-    .replace(/-+/g, "-") // Replace multiple hyphens with single hyphen
-    .replace(/^-|-$/g, ""); // Remove leading/trailing hyphens
+    .replace(/[^a-z0-9\s-]/g, "")
+    .replace(/\s+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "");
 }
 
-// Helper function to normalize date to ISO format
+// Helper: normalize date YYYY-MM-DD
 function normalizeDate(dateString: string): string {
   const date = new Date(dateString);
-  if (isNaN(date.getTime())) {
-    throw new Error("Invalid date format");
-  }
-  return date.toISOString().split("T")[0]; // Return YYYY-MM-DD format
+  if (isNaN(date.getTime())) throw new Error("Invalid date format");
+  return date.toISOString().split("T")[0];
 }
 
-// Helper function to normalize time format
+// Helper: normalize time HH:MM 24-hour
 function normalizeTime(timeString: string): string {
-  // Handle various time formats and convert to HH:MM (24-hour format)
   const timeRegex = /^(\d{1,2}):(\d{2})(\s*(AM|PM))?$/i;
   const match = timeString.trim().match(timeRegex);
 
-  if (!match) {
-    throw new Error("Invalid time format. Use HH:MM or HH:MM AM/PM");
-  }
+  if (!match) throw new Error("Invalid time format. Use HH:MM or HH:MM AM/PM");
 
   let hours = parseInt(match[1]);
   const minutes = match[2];
   const period = match[4]?.toUpperCase();
 
   if (period) {
-    // Convert 12-hour to 24-hour format
     if (period === "PM" && hours !== 12) hours += 12;
     if (period === "AM" && hours === 12) hours = 0;
   }
@@ -176,17 +168,13 @@ function normalizeTime(timeString: string): string {
     hours > 23 ||
     parseInt(minutes) < 0 ||
     parseInt(minutes) > 59
-  ) {
+  )
     throw new Error("Invalid time values");
-  }
 
   return `${hours.toString().padStart(2, "0")}:${minutes}`;
 }
 
-// Create unique index on slug for better performance
-EventSchema.index({ slug: 1 }, { unique: true });
-
-// Create compound index for common queries
+// Compound index for fast queries
 EventSchema.index({ date: 1, mode: 1 });
 
 const Event = models.Event || model<IEvent>("Event", EventSchema);
