@@ -78,6 +78,16 @@ export async function POST(req: NextRequest) {
         .end(buffer);
     });
 
+    if (!uploadResult || !uploadResult.secure_url) {
+      return NextResponse.json(
+        {
+          message: "Image upload failed",
+          error: "No upload result from Cloudinary",
+        },
+        { status: 500 },
+      );
+    }
+
     event.image = uploadResult.secure_url;
 
     const createdEvent = await Event.create(event);
