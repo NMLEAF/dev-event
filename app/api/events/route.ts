@@ -72,7 +72,7 @@ export async function POST(req: NextRequest) {
           (error, results) => {
             if (error) return reject(error);
 
-            resolve(results);
+            resolve(results ?? null);
           },
         )
         .end(buffer);
