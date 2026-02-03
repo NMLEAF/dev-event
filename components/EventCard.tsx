@@ -4,7 +4,7 @@ import Link from "next/link";
 
 const EventCard = ({ title, image, slug, date, location, time }: EventItem) => {
   return (
-    <Link href={`/events/${slug}`} id="event-card">
+    <Link href={`/event/${slug}`} id="event-card">
       <Image
         src={image}
         alt={title}
